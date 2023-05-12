@@ -127,7 +127,9 @@ if __name__ == '__main__':
         # remove `backbone.` prefix induced by multicrop wrapper
         state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         msg = model.load_state_dict(state_dict, strict=False)
-        print('Pretrained weights found at {} and loaded with msg: {}'.format(args.pretrained_weights, msg))
+        print(
+            f'Pretrained weights found at {args.pretrained_weights} and loaded with msg: {msg}'
+        )
     else:
         print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
         url = None
@@ -141,7 +143,9 @@ if __name__ == '__main__':
             url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
         if url is not None:
             print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
-            state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
+            state_dict = torch.hub.load_state_dict_from_url(
+                url=f"https://dl.fbaipublicfiles.com/dino/{url}"
+            )
             model.load_state_dict(state_dict, strict=True)
         else:
             print("There is no reference weights available for this model => We use random weights.")
@@ -200,10 +204,18 @@ if __name__ == '__main__':
     os.makedirs(args.output_dir, exist_ok=True)
     torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(args.output_dir, "img.png"))
     for j in range(nh):
-        fname = os.path.join(args.output_dir, "attn-head" + str(j) + ".png")
+        fname = os.path.join(args.output_dir, f"attn-head{str(j)}.png")
         plt.imsave(fname=fname, arr=attentions[j], format='png')
         print(f"{fname} saved.")
 
     image = skimage.io.imread(os.path.join(args.output_dir, "img.png"))
     for j in range(nh):
-        display_instances(image, th_attn[j], fname=os.path.join(args.output_dir, "mask_th" + str(args.threshold) + "_head" + str(j) +".png"), blur=False)
+        display_instances(
+            image,
+            th_attn[j],
+            fname=os.path.join(
+                args.output_dir,
+                f"mask_th{str(args.threshold)}_head{str(j)}.png",
+            ),
+            blur=False,
+        )

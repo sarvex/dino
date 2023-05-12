@@ -131,7 +131,7 @@ def train(model, linear_classifier, optimizer, loader, epoch, n, avgpool):
     linear_classifier.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
-    header = 'Epoch: [{}]'.format(epoch)
+    header = f'Epoch: [{epoch}]'
     for (inp, target) in metric_logger.log_every(loader, 20, header):
         # move to gpu
         inp = inp.cuda(non_blocking=True)

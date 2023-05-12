@@ -62,10 +62,7 @@ class Solarization(object):
         self.p = p
 
     def __call__(self, img):
-        if random.random() < self.p:
-            return ImageOps.solarize(img)
-        else:
-            return img
+        return ImageOps.solarize(img) if random.random() < self.p else img
 
 
 def load_pretrained_weights(model, pretrained_weights, checkpoint_key, model_name, patch_size):
@@ -79,7 +76,9 @@ def load_pretrained_weights(model, pretrained_weights, checkpoint_key, model_nam
         # remove `backbone.` prefix induced by multicrop wrapper
         state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         msg = model.load_state_dict(state_dict, strict=False)
-        print('Pretrained weights found at {} and loaded with msg: {}'.format(pretrained_weights, msg))
+        print(
+            f'Pretrained weights found at {pretrained_weights} and loaded with msg: {msg}'
+        )
     else:
         print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
         url = None
@@ -93,7 +92,9 @@ def load_pretrained_weights(model, pretrained_weights, checkpoint_key, model_nam
             url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
         if url is not None:
             print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
-            state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
+            state_dict = torch.hub.load_state_dict_from_url(
+                url=f"https://dl.fbaipublicfiles.com/dino/{url}"
+            )
             model.load_state_dict(state_dict, strict=True)
         else:
             print("There is no reference weights available for this model => We use random weights.")
@@ -125,7 +126,7 @@ def restart_from_checkpoint(ckp_path, run_variables=None, **kwargs):
     """
     if not os.path.isfile(ckp_path):
         return
-    print("Found checkpoint at {}".format(ckp_path))
+    print(f"Found checkpoint at {ckp_path}")
 
     # open checkpoint file
     checkpoint = torch.load(ckp_path, map_location="cpu")
@@ -137,15 +138,15 @@ def restart_from_checkpoint(ckp_path, run_variables=None, **kwargs):
         if key in checkpoint and value is not None:
             try:
                 msg = value.load_state_dict(checkpoint[key], strict=False)
-                print("=> loaded {} from checkpoint '{}' with msg {}".format(key, ckp_path, msg))
+                print(f"=> loaded {key} from checkpoint '{ckp_path}' with msg {msg}")
             except TypeError:
                 try:
                     msg = value.load_state_dict(checkpoint[key])
-                    print("=> loaded {} from checkpoint '{}'".format(key, ckp_path))
+                    print(f"=> loaded {key} from checkpoint '{ckp_path}'")
                 except ValueError:
-                    print("=> failed to load {} from checkpoint '{}'".format(key, ckp_path))
+                    print(f"=> failed to load {key} from checkpoint '{ckp_path}'")
         else:
-            print("=> failed to load {} from checkpoint '{}'".format(key, ckp_path))
+            print(f"=> failed to load {key} from checkpoint '{ckp_path}'")
 
     # re load variable important for the run
     if run_variables is not None:
@@ -276,7 +277,7 @@ def reduce_dict(input_dict, average=True):
         dist.all_reduce(values)
         if average:
             values /= world_size
-        reduced_dict = {k: v for k, v in zip(names, values)}
+        reduced_dict = dict(zip(names, values))
     return reduced_dict
 
 
@@ -297,15 +298,12 @@ class MetricLogger(object):
             return self.meters[attr]
         if attr in self.__dict__:
             return self.__dict__[attr]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, attr))
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{attr}'"
+        )
 
     def __str__(self):
-        loss_str = []
-        for name, meter in self.meters.items():
-            loss_str.append(
-                "{}: {}".format(name, str(meter))
-            )
+        loss_str = [f"{name}: {str(meter)}" for name, meter in self.meters.items()]
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -316,14 +314,13 @@ class MetricLogger(object):
         self.meters[name] = meter
 
     def log_every(self, iterable, print_freq, header=None):
-        i = 0
         if not header:
             header = ''
         start_time = time.time()
         end = time.time()
         iter_time = SmoothedValue(fmt='{avg:.6f}')
         data_time = SmoothedValue(fmt='{avg:.6f}')
-        space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
+        space_fmt = f':{len(str(len(iterable)))}d'
         if torch.cuda.is_available():
             log_msg = self.delimiter.join([
                 header,
@@ -344,7 +341,7 @@ class MetricLogger(object):
                 'data: {data}'
             ])
         MB = 1024.0 * 1024.0
-        for obj in iterable:
+        for i, obj in enumerate(iterable):
             data_time.update(time.time() - end)
             yield obj
             iter_time.update(time.time() - end)
@@ -362,7 +359,6 @@ class MetricLogger(object):
                         i, len(iterable), eta=eta_string,
                         meters=str(self),
                         time=str(iter_time), data=str(data_time)))
-            i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -391,23 +387,15 @@ def get_sha():
 
 
 def is_dist_avail_and_initialized():
-    if not dist.is_available():
-        return False
-    if not dist.is_initialized():
-        return False
-    return True
+    return False if not dist.is_available() else bool(dist.is_initialized())
 
 
 def get_world_size():
-    if not is_dist_avail_and_initialized():
-        return 1
-    return dist.get_world_size()
+    return 1 if not is_dist_avail_and_initialized() else dist.get_world_size()
 
 
 def get_rank():
-    if not is_dist_avail_and_initialized():
-        return 0
-    return dist.get_rank()
+    return 0 if not is_dist_avail_and_initialized() else dist.get_rank()
 
 
 def is_main_process():
@@ -463,8 +451,7 @@ def init_distributed_mode(args):
     )
 
     torch.cuda.set_device(args.gpu)
-    print('| distributed init (rank {}): {}'.format(
-        args.rank, args.dist_url), flush=True)
+    print(f'| distributed init (rank {args.rank}): {args.dist_url}', flush=True)
     dist.barrier()
     setup_for_distributed(args.rank == 0)
 
@@ -588,10 +575,7 @@ class MultiCropWrapper(nn.Module):
         start_idx = 0
         for end_idx in idx_crops:
             _out = self.backbone(torch.cat(x[start_idx: end_idx]))
-            if start_idx == 0:
-                output = _out
-            else:
-                output = torch.cat((output, _out))
+            output = _out if start_idx == 0 else torch.cat((output, _out))
             start_idx = end_idx
         # Run the head forward on the concatenated features.
         return self.head(output)
@@ -613,7 +597,6 @@ def get_params_groups(model):
 
 def has_batchnorms(model):
     bn_types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, nn.SyncBatchNorm)
-    for name, module in model.named_modules():
-        if isinstance(module, bn_types):
-            return True
-    return False
+    return any(
+        isinstance(module, bn_types) for name, module in model.named_modules()
+    )

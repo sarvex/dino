@@ -201,8 +201,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     utils.init_distributed_mode(args)
-    print("git:\n  {}\n".format(utils.get_sha()))
-    print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+    print(f"git:\n  {utils.get_sha()}\n")
+    print("\n".join(f"{k}: {str(v)}" for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
 
     if args.load_features:

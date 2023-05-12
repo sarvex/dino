@@ -49,55 +49,51 @@ class VideoGenerator:
         if self.args.input_path is None:
             print(f"Provided input path {self.args.input_path} is non valid.")
             sys.exit(1)
-        else:
-            if self.args.video_only:
-                self._generate_video_from_images(
-                    self.args.input_path, self.args.output_path
+        elif self.args.video_only:
+            self._generate_video_from_images(
+                self.args.input_path, self.args.output_path
+            )
+        elif os.path.exists(self.args.input_path):
+            # If input is a video file
+            if os.path.isfile(self.args.input_path):
+                frames_folder = os.path.join(self.args.output_path, "frames")
+                attention_folder = os.path.join(
+                    self.args.output_path, "attention"
                 )
-            else:
-                # If input path exists
-                if os.path.exists(self.args.input_path):
-                    # If input is a video file
-                    if os.path.isfile(self.args.input_path):
-                        frames_folder = os.path.join(self.args.output_path, "frames")
-                        attention_folder = os.path.join(
-                            self.args.output_path, "attention"
-                        )
 
-                        os.makedirs(frames_folder, exist_ok=True)
-                        os.makedirs(attention_folder, exist_ok=True)
+                os.makedirs(frames_folder, exist_ok=True)
+                os.makedirs(attention_folder, exist_ok=True)
 
-                        self._extract_frames_from_video(
-                            self.args.input_path, frames_folder
-                        )
+                self._extract_frames_from_video(
+                    self.args.input_path, frames_folder
+                )
 
-                        self._inference(
-                            frames_folder,
-                            attention_folder,
-                        )
+                self._inference(
+                    frames_folder,
+                    attention_folder,
+                )
 
-                        self._generate_video_from_images(
-                            attention_folder, self.args.output_path
-                        )
+                self._generate_video_from_images(
+                    attention_folder, self.args.output_path
+                )
 
-                    # If input is a folder of already extracted frames
-                    if os.path.isdir(self.args.input_path):
-                        attention_folder = os.path.join(
-                            self.args.output_path, "attention"
-                        )
+            # If input is a folder of already extracted frames
+            if os.path.isdir(self.args.input_path):
+                attention_folder = os.path.join(
+                    self.args.output_path, "attention"
+                )
 
-                        os.makedirs(attention_folder, exist_ok=True)
+                os.makedirs(attention_folder, exist_ok=True)
 
-                        self._inference(self.args.input_path, attention_folder)
+                self._inference(self.args.input_path, attention_folder)
 
-                        self._generate_video_from_images(
-                            attention_folder, self.args.output_path
-                        )
+                self._generate_video_from_images(
+                    attention_folder, self.args.output_path
+                )
 
-                # If input path doesn't exists
-                else:
-                    print(f"Provided input path {self.args.input_path} doesn't exists.")
-                    sys.exit(1)
+        else:
+            print(f"Provided input path {self.args.input_path} doesn't exists.")
+            sys.exit(1)
 
     def _extract_frames_from_video(self, inp: str, out: str):
         vidcap = cv2.VideoCapture(inp)
@@ -136,14 +132,14 @@ class VideoGenerator:
                 img_array.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
 
         out = cv2.VideoWriter(
-            os.path.join(out, "video." + self.args.video_format),
+            os.path.join(out, f"video.{self.args.video_format}"),
             FOURCC[self.args.video_format],
             self.args.fps,
             size,
         )
 
-        for i in range(len(img_array)):
-            out.write(img_array[i])
+        for item in img_array:
+            out.write(item)
         out.release()
         print("Done")
 
@@ -226,7 +222,7 @@ class VideoGenerator:
             )
 
             # save attentions heatmaps
-            fname = os.path.join(out, "attn-" + os.path.basename(img_path))
+            fname = os.path.join(out, f"attn-{os.path.basename(img_path)}")
             plt.imsave(
                 fname=fname,
                 arr=sum(
@@ -260,9 +256,7 @@ class VideoGenerator:
             state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
             msg = model.load_state_dict(state_dict, strict=False)
             print(
-                "Pretrained weights found at {} and loaded with msg: {}".format(
-                    self.args.pretrained_weights, msg
-                )
+                f"Pretrained weights found at {self.args.pretrained_weights} and loaded with msg: {msg}"
             )
         else:
             print(
@@ -282,7 +276,7 @@ class VideoGenerator:
                     "Since no pretrained weights have been provided, we load the reference pretrained DINO weights."
                 )
                 state_dict = torch.hub.load_state_dict_from_url(
-                    url="https://dl.fbaipublicfiles.com/dino/" + url
+                    url=f"https://dl.fbaipublicfiles.com/dino/{url}"
                 )
                 model.load_state_dict(state_dict, strict=True)
             else:

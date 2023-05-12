@@ -158,9 +158,7 @@ def extract_feature(model, frame, return_h_w=False):
     dim = out.shape[-1]
     out = out[0].reshape(h, w, dim)
     out = out.reshape(-1, dim)
-    if return_h_w:
-        return out, h, w
-    return out
+    return (out, h, w) if return_h_w else out
 
 
 def imwrite_indexed(filename, array, color_palette):
@@ -189,7 +187,7 @@ def to_one_hot(y_tensor, n_dims=None):
 
 
 def read_frame_list(video_dir):
-    frame_list = [img for img in glob.glob(os.path.join(video_dir,"*.jpg"))]
+    frame_list = list(glob.glob(os.path.join(video_dir,"*.jpg")))
     frame_list = sorted(frame_list)
     return frame_list
 
@@ -264,8 +262,8 @@ if __name__ == '__main__':
     parser.add_argument("--bs", type=int, default=6, help="Batch size, try to reduce if OOM")
     args = parser.parse_args()
 
-    print("git:\n  {}\n".format(utils.get_sha()))
-    print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+    print(f"git:\n  {utils.get_sha()}\n")
+    print("\n".join(f"{k}: {str(v)}" for k, v in sorted(dict(vars(args)).items())))
 
     # building network
     model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
@@ -276,9 +274,12 @@ if __name__ == '__main__':
         param.requires_grad = False
     model.eval()
 
-    color_palette = []
-    for line in urlopen("https://raw.githubusercontent.com/Liusifei/UVC/master/libs/data/palette.txt"):
-        color_palette.append([int(i) for i in line.decode("utf-8").split('\n')[0].split(" ")])
+    color_palette = [
+        [int(i) for i in line.decode("utf-8").split('\n')[0].split(" ")]
+        for line in urlopen(
+            "https://raw.githubusercontent.com/Liusifei/UVC/master/libs/data/palette.txt"
+        )
+    ]
     color_palette = np.asarray(color_palette, dtype=np.uint8).reshape(-1,3)
 
     video_list = open(os.path.join(args.data_path, "ImageSets/2017/val.txt")).readlines()
